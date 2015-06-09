@@ -28,6 +28,9 @@ import resources
 from modis_dialog import ModisFromQgisDialog
 import os.path
 
+from datetime import date
+from mypymodis import downmodis
+import sys
 
 class ModisFromQgis:
     """QGIS Plugin Implementation."""
@@ -180,13 +183,64 @@ class ModisFromQgis:
 
 
     def run(self):
-        """Run method that performs all the real work"""
+    """Run method that performs all the real work"""
         # show the dialog
         self.dlg.show()
         # Run the dialog event loop
         result = self.dlg.exec_()
         # See if OK was pressed
         if result:
-            # Do something useful here - delete the line containing pass and
-            # substitute with your code.
-            pass
+            file = self.dlg.sourceLineEdit.text()
+            destination = self.dlg.destinationLineEdit.text()
+            self.launch()
+
+
+    def launch():
+        file = "/Users/gmilani/Desktop/modis.txt"
+        options = Options() 
+        print options.url
+        options.destinationFolder = "/Users/gmilani/Desktop" 
+        f = open(file)
+
+        lines = [elem for elem in f.readlines()]
+        lines = [l.split("/")[-1] for l in lines]
+        tiles = [elem.strip().split('.')[2] for elem in lines if elem != '\n']
+
+        tiles = ','.join(sorted(set(tiles)))
+        dates = [elem.split('.')[1].replace('A', '') for elem in lines if elem != '\n']
+        dates = sorted(set(dates))
+        for d in dates:
+            year = int(d[0:4])
+            doy = int(d[4:7])
+            fdate = date.fromordinal(date(year, 1, 1).toordinal() + doy - 1).isoformat()
+            modisOgg = downmodis.downModis(url=options.url, user=options.user,
+                                       password=options.password,
+                                       destinationFolder=options.destinationFolder,
+                                       tiles=tiles, path=options.path,
+                                       product=options.prod, delta=1,
+                                       today=fdate, debug=options.debug,
+                                       jpg=options.jpg)
+            modisOgg.connect()
+            day = modisOgg.getListDays()[0]
+            if modisOgg.urltype == 'http':
+                 listAllFiles = modisOgg.getFilesList(day)
+            else:
+                listAllFiles = modisOgg.getFilesList()
+            listFilesDown = modisOgg.checkDataExist(listAllFiles)
+            modisOgg.dayDownload(day, listFilesDown)
+            if modisOgg.urltype == 'http':
+                modisOgg.closeFilelist()
+            else:
+                modisOgg.closeFTP()
+        
+class Options():
+    def __init__(self):
+        self.url = "http://e4ftl01.cr.usgs.gov"
+        self.user = "anonymous"
+        self.password = None
+        self.destinationFolder = "/"
+        self.jpg = False
+        self.path = "/MODIS_Composites/MOLT"
+        self.prod = "MOD13Q1.005"
+        self.debug = False
+
