@@ -22,12 +22,16 @@
 """
 from PyQt4.QtCore import QSettings, QTranslator, qVersion, QCoreApplication
 from PyQt4.QtGui import QAction, QIcon
+from PyQt4 import QtCore, QtGui
 # Initialize Qt resources from file resources.py
 import resources
 # Import the code for the dialog
 from modis_dialog import ModisFromQgisDialog
 import os.path
 
+from datetime import date
+from mypymodis import downmodis
+import sys
 
 class ModisFromQgis:
     """QGIS Plugin Implementation."""
@@ -187,6 +191,81 @@ class ModisFromQgis:
         result = self.dlg.exec_()
         # See if OK was pressed
         if result:
-            # Do something useful here - delete the line containing pass and
-            # substitute with your code.
-            pass
+            file = self.dlg.sourceLineEdit.text()
+            destination = self.dlg.destinationLineEdit.text()
+            self.launch(file, destination)
+
+
+    def launch(self, file, destination):
+        options = Options() 
+        print options.url
+        options.destinationFolder = destination 
+        f = open(file)
+
+        lines = [elem for elem in f.readlines()]
+        lines = [l.split("/")[-1] for l in lines]
+        tiles = [elem.strip().split('.')[2] for elem in lines if elem != '\n']
+
+        tiles = ','.join(sorted(set(tiles)))
+        dates = [elem.split('.')[1].replace('A', '') for elem in lines if elem != '\n']
+        dates = sorted(set(dates))
+
+        lBar = len(dates)
+        bar = ProgressBar(total=lBar)
+        bar.show()
+   
+        for i, d in enumerate(dates):
+            bar.update_progressbar(i+1)
+            QtGui.qApp.processEvents()
+            year = int(d[0:4])
+            doy = int(d[4:7])
+            fdate = date.fromordinal(date(year, 1, 1).toordinal() + doy - 1).isoformat()
+            modisOgg = downmodis.downModis(url=options.url, user=options.user,
+                                       password=options.password,
+                                       destinationFolder=options.destinationFolder,
+                                       tiles=tiles, path=options.path,
+                                       product=options.prod, delta=1,
+                                       today=fdate, debug=options.debug,
+                                       jpg=options.jpg)
+            modisOgg.connect()
+            day = modisOgg.getListDays()[0]
+            if modisOgg.urltype == 'http':
+                 listAllFiles = modisOgg.getFilesList(day)
+            else:
+                listAllFiles = modisOgg.getFilesList()
+            listFilesDown = modisOgg.checkDataExist(listAllFiles)
+            modisOgg.dayDownload(day, listFilesDown)
+            if modisOgg.urltype == 'http':
+                modisOgg.closeFilelist()
+            else:
+                modisOgg.closeFTP()
+        bar = None
+        
+class Options():
+    def __init__(self):
+        self.url = "http://e4ftl01.cr.usgs.gov"
+        self.user = "anonymous"
+        self.password = None
+        self.destinationFolder = "/"
+        self.jpg = False
+        self.path = "/MODIS_Composites/MOLT"
+        self.prod = "MOD13Q1.005"
+        self.debug = False
+
+
+class ProgressBar(QtGui.QWidget):
+    def __init__(self, parent=None, total=20):
+        super(ProgressBar, self).__init__(parent)
+
+        self.progressbar = QtGui.QProgressBar()
+        self.progressbar.setMinimum(0)
+        self.progressbar.setMaximum(total)
+
+        main_layout = QtGui.QGridLayout()
+        main_layout.addWidget(self.progressbar, 0, 0)
+
+        self.setLayout(main_layout)
+        self.setWindowTitle("Progress")
+
+    def update_progressbar(self, val):
+        self.progressbar.setValue(val) 
