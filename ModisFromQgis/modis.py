@@ -22,6 +22,7 @@
 """
 from PyQt4.QtCore import QSettings, QTranslator, qVersion, QCoreApplication
 from PyQt4.QtGui import QAction, QIcon
+from PyQt4 import QtCore, QtGui
 # Initialize Qt resources from file resources.py
 import resources
 # Import the code for the dialog
@@ -183,7 +184,7 @@ class ModisFromQgis:
 
 
     def run(self):
-    """Run method that performs all the real work"""
+        """Run method that performs all the real work"""
         # show the dialog
         self.dlg.show()
         # Run the dialog event loop
@@ -192,14 +193,13 @@ class ModisFromQgis:
         if result:
             file = self.dlg.sourceLineEdit.text()
             destination = self.dlg.destinationLineEdit.text()
-            self.launch()
+            self.launch(file, destination)
 
 
-    def launch():
-        file = "/Users/gmilani/Desktop/modis.txt"
+    def launch(self, file, destination):
         options = Options() 
         print options.url
-        options.destinationFolder = "/Users/gmilani/Desktop" 
+        options.destinationFolder = destination 
         f = open(file)
 
         lines = [elem for elem in f.readlines()]
@@ -209,7 +209,14 @@ class ModisFromQgis:
         tiles = ','.join(sorted(set(tiles)))
         dates = [elem.split('.')[1].replace('A', '') for elem in lines if elem != '\n']
         dates = sorted(set(dates))
-        for d in dates:
+
+        lBar = len(dates)
+        bar = ProgressBar(total=lBar)
+        bar.show()
+   
+        for i, d in enumerate(dates):
+            bar.update_progressbar(i+1)
+            QtGui.qApp.processEvents()
             year = int(d[0:4])
             doy = int(d[4:7])
             fdate = date.fromordinal(date(year, 1, 1).toordinal() + doy - 1).isoformat()
@@ -232,6 +239,7 @@ class ModisFromQgis:
                 modisOgg.closeFilelist()
             else:
                 modisOgg.closeFTP()
+        bar = None
         
 class Options():
     def __init__(self):
@@ -244,3 +252,20 @@ class Options():
         self.prod = "MOD13Q1.005"
         self.debug = False
 
+
+class ProgressBar(QtGui.QWidget):
+    def __init__(self, parent=None, total=20):
+        super(ProgressBar, self).__init__(parent)
+
+        self.progressbar = QtGui.QProgressBar()
+        self.progressbar.setMinimum(0)
+        self.progressbar.setMaximum(total)
+
+        main_layout = QtGui.QGridLayout()
+        main_layout.addWidget(self.progressbar, 0, 0)
+
+        self.setLayout(main_layout)
+        self.setWindowTitle("Progress")
+
+    def update_progressbar(self, val):
+        self.progressbar.setValue(val) 

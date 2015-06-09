@@ -39,3 +39,13 @@ class ModisFromQgisDialog(QtGui.QDialog, FORM_CLASS):
         # http://qt-project.org/doc/qt-4.8/designer-using-a-ui-file.html
         # #widgets-and-dialogs-with-auto-connect
         self.setupUi(self)
+        self.sourceTool.released.connect(self.getFile)
+        self.destinationTool.released.connect(self.getFolder)
+
+    def getFolder(self):
+        file = str(QtGui.QFileDialog.getExistingDirectory(self, "Select Directory"))
+        self.destinationLineEdit.setText(file)
+
+    def getFile(self):
+        file = str(QtGui.QFileDialog.getOpenFileName(self, "Select File"))
+        self.sourceLineEdit.setText(file)

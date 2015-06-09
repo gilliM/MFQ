@@ -1,3 +1,0 @@
-[submodule "ModisFromQgis/pyModis"]
-	path = ModisFromQgis/pyModis
-	url = git@github.com:lucadelu/pyModis.git
