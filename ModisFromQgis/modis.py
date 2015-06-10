@@ -256,16 +256,18 @@ class Options():
 class ProgressBar(QtGui.QWidget):
     def __init__(self, parent=None, total=20):
         super(ProgressBar, self).__init__(parent)
-
+        self.total = total
         self.progressbar = QtGui.QProgressBar()
         self.progressbar.setMinimum(0)
         self.progressbar.setMaximum(total)
-
+        self.label = QtGui.QLabel()
+        self.label.setText("")
         main_layout = QtGui.QGridLayout()
         main_layout.addWidget(self.progressbar, 0, 0)
-
+        main_layout.addWidget(self.label, 1, 0)
         self.setLayout(main_layout)
         self.setWindowTitle("Progress")
 
     def update_progressbar(self, val):
-        self.progressbar.setValue(val) 
+        self.progressbar.setValue(val)
+        self.label.setText("Downloading file %i / %i"% (val, self.total))
